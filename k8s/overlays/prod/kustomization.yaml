@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd-demo-prod
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - APP_ENV=prod
+      - APP_GREETING=Hello from PROD
+
+images:
+  - name: ghcr.io/gsaini/argocd-getting-started
+    newTag: v1.0.0 # managed by the promote workflow (staging -> prod)
+
+patches:
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 3
+  # Production tightens resources a touch and pins a PodDisruptionBudget-friendly
+  # rollout. Kept minimal to keep the demo readable.
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources/limits/cpu
+        value: 200m

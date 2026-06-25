@@ -1,0 +1,15 @@
+{
+  "name": "argocd-getting-started-app",
+  "version": "1.0.0",
+  "description": "Tiny zero-dependency Node web app used to demonstrate build-once / deploy-many GitOps with Argo CD.",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "APP_ENV=local node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT"
+}

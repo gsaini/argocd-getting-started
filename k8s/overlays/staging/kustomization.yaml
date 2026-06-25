@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd-demo-staging
+
+resources:
+  - ../../base
+
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - APP_ENV=staging
+      - APP_GREETING=Hello from STAGING
+
+images:
+  - name: ghcr.io/gsaini/argocd-getting-started
+    newTag: v1.0.0 # managed by the promote workflow (dev -> staging)
+
+patches:
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 2

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: argocd-getting-started
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Build-once / deploy-many demo across dev, staging and prod.
+  sourceRepos:
+    - https://github.com/gsaini/argocd-getting-started.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd-demo-dev
+    - server: https://kubernetes.default.svc
+      namespace: argocd-demo-staging
+    - server: https://kubernetes.default.svc
+      namespace: argocd-demo-prod
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

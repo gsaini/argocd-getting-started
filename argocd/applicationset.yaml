@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: demo
+  namespace: argocd
+spec:
+  # Alternative to the app-of-apps pattern: one ApplicationSet generates all
+  # three environment Applications from a single list. Apply EITHER this OR
+  # argocd/app-of-apps.yaml -- not both -- to avoid duplicate Applications.
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - list:
+        elements:
+          - env: dev
+            autoSync: "true"
+          - env: staging
+            autoSync: "true"
+          - env: prod
+            autoSync: "false" # prod stays a manual sync (human gate)
+  template:
+    metadata:
+      name: "demo-{{.env}}"
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: argocd-getting-started
+      source:
+        repoURL: https://github.com/gsaini/argocd-getting-started.git
+        targetRevision: main
+        path: "k8s/overlays/{{.env}}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "argocd-demo-{{.env}}"
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+  # Per-environment automated sync is toggled in templatePatch below using the
+  # `autoSync` flag from each list element.
+  templatePatch: |
+    {{- if eq .autoSync "true" }}
+    spec:
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+    {{- end }}

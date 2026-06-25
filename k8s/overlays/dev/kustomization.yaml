@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd-demo-dev
+
+resources:
+  - ../../base
+
+# Per-environment configuration. Note the image name is shared with the other
+# overlays -- only `newTag` is promoted between environments.
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    literals:
+      - APP_ENV=dev
+      - APP_GREETING=Hello from DEV
+
+images:
+  - name: ghcr.io/gsaini/argocd-getting-started
+    newTag: v1.0.0 # managed by CI: updated on every push to main
+
+patches:
+  - target:
+      kind: Deployment
+      name: web
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1

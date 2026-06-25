@@ -1,0 +1,83 @@
+name: build-once
+
+# Build the image exactly once per app change, then point the dev overlay at
+# that immutable tag. Promotion to staging/prod reuses this same artifact and
+# is handled by promote.yaml -- nothing is ever rebuilt downstream.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/build.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # to commit the updated dev image tag back to main
+  packages: write # to push to GHCR
+
+concurrency:
+  group: build-once
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute immutable tag + metadata
+        id: meta
+        run: |
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          echo "tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          echo "version=1.0.0+${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (once)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./app
+          file: ./app/Dockerfile
+          push: true
+          # Tag with the immutable SHA tag (used for promotion) and a moving
+          # `latest` (convenience only -- overlays never reference it).
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          build-args: |
+            APP_VERSION=${{ steps.meta.outputs.version }}
+            GIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ steps.meta.outputs.build_time }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Promote new build to dev overlay
+        run: |
+          TAG="${{ steps.meta.outputs.tag }}"
+          sed -i -E "s|(newTag: ).*|\1${TAG} # managed by CI: updated on every push to main|" \
+            k8s/overlays/dev/kustomization.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "dev overlay already at ${TAG}"
+          else
+            git add k8s/overlays/dev/kustomization.yaml
+            git commit -m "ci: deploy ${TAG} to dev [skip ci]"
+            git push
+          fi

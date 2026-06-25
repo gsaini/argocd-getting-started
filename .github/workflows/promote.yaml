@@ -1,0 +1,57 @@
+name: promote
+
+# Promote an already-built image tag from one environment to the next.
+# This NEVER rebuilds -- it only copies the exact `newTag` forward, which is the
+# whole point of "build once, deploy many". Argo CD then syncs the change.
+
+on:
+  workflow_dispatch:
+    inputs:
+      to:
+        description: "Target environment to promote into"
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote-${{ github.event.inputs.to }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve source environment
+        id: src
+        run: |
+          case "${{ github.event.inputs.to }}" in
+            staging) echo "from=dev" >> "$GITHUB_OUTPUT" ;;
+            prod)    echo "from=staging" >> "$GITHUB_OUTPUT" ;;
+            *) echo "::error::unknown target"; exit 1 ;;
+          esac
+
+      - name: Copy image tag forward
+        run: |
+          FROM="${{ steps.src.outputs.from }}"
+          TO="${{ github.event.inputs.to }}"
+          TAG="$(grep -E 'newTag:' k8s/overlays/${FROM}/kustomization.yaml | head -1 | awk '{print $2}')"
+          echo "Promoting tag '${TAG}' from ${FROM} -> ${TO}"
+          if [ -z "${TAG}" ]; then echo "::error::could not read source tag"; exit 1; fi
+          sed -i -E "s|(newTag: ).*|\1${TAG} # promoted from ${FROM}|" \
+            k8s/overlays/${TO}/kustomization.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "${TO} already at ${TAG}"
+          else
+            git add k8s/overlays/${TO}/kustomization.yaml
+            git commit -m "ci: promote ${TAG} ${FROM} -> ${TO} [skip ci]"
+            git push
+          fi

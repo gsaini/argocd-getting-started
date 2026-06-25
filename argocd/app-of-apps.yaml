@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: argocd-getting-started
+  source:
+    repoURL: https://github.com/gsaini/argocd-getting-started.git
+    targetRevision: main
+    # App-of-apps: this root Application renders the three environment
+    # Applications under argocd/applications, so a single `kubectl apply`
+    # bootstraps the whole demo.
+    path: argocd/applications
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

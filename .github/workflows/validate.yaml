@@ -1,0 +1,33 @@
+name: validate-manifests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "k8s/**"
+      - "argocd/**"
+      - ".github/workflows/validate.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  kustomize-build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, staging, prod]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kustomize
+        run: |
+          curl -sLo /tmp/k.tar.gz \
+            https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz
+          tar -xzf /tmp/k.tar.gz -C /usr/local/bin
+
+      - name: Render ${{ matrix.env }} overlay
+        run: |
+          echo "## Rendered manifests for ${{ matrix.env }}"
+          kustomize build "k8s/overlays/${{ matrix.env }}"
