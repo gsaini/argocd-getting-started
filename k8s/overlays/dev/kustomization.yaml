@@ -17,7 +17,7 @@ configMapGenerator:
 
 images:
   - name: ghcr.io/gsaini/argocd-getting-started
-    newTag: v1.0.0 # managed by CI: updated on every push to main
+    newTag: sha-4365574 # managed by CI: updated on every push to main
 
 patches:
   - target:
