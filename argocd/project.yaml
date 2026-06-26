@@ -10,6 +10,9 @@ spec:
   sourceRepos:
     - https://github.com/gsaini/argocd-getting-started.git
   destinations:
+    # The app-of-apps root creates child Application objects in the argocd ns.
+    - server: https://kubernetes.default.svc
+      namespace: argocd
     - server: https://kubernetes.default.svc
       namespace: argocd-demo-dev
     - server: https://kubernetes.default.svc

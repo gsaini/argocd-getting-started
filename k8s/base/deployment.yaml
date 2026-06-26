@@ -19,6 +19,12 @@ spec:
     spec:
       securityContext:
         runAsNonRoot: true
+        # Numeric UID/GID so the kubelet can verify non-root at admission
+        # (the image's `node` user is uid/gid 1000). A non-numeric USER in the
+        # image fails with "cannot verify user" under runAsNonRoot.
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
