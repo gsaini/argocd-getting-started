@@ -39,6 +39,9 @@ jobs:
           echo "build_time=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
           echo "version=1.0.0+${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
+      - name: Set up QEMU (for multi-arch builds)
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -55,6 +58,8 @@ jobs:
           context: ./app
           file: ./app/Dockerfile
           push: true
+          # Multi-arch so the same tag runs on amd64 and arm64 nodes/clusters.
+          platforms: linux/amd64,linux/arm64
           # Tag with the immutable SHA tag (used for promotion) and a moving
           # `latest` (convenience only -- overlays never reference it).
           tags: |
