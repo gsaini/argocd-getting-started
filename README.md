@@ -38,7 +38,44 @@ This repo makes that principle concrete:
 The running app shows this at a glance: **Build version** and **Git SHA** are
 identical in every environment, while the **Environment** badge changes.
 
-See [docs/architecture.md](docs/architecture.md) for the full diagram.
+See [docs/architecture.md](docs/architecture.md) for the full write-up.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    dev_push["Developer pushes to <code>app/**</code> on <code>main</code>"]
+
+    subgraph build["build-once (CI · build.yaml)"]
+        direction TB
+        docker["docker build<br/>(bakes VERSION + GIT_SHA)"]
+        ghcr["push → ghcr.io/gsaini/...:sha-abc123"]
+        bumpdev["bump k8s/overlays/dev → newTag: sha-abc123"]
+        docker --> ghcr --> bumpdev
+    end
+
+    subgraph promote["promote (CI · manual · promote.yaml)"]
+        direction LR
+        p1["dev tag"] --> p2["staging overlay"] --> p3["prod overlay"]
+    end
+
+    subgraph argocd["Argo CD (reconciles Git → cluster)"]
+        direction TB
+        adev["demo-dev · auto-sync"] --> nsdev[["ns argocd-demo-dev"]]
+        astg["demo-staging · auto-sync"] --> nsstg[["ns argocd-demo-staging"]]
+        aprod["demo-prod · manual sync"] --> nsprod[["ns argocd-demo-prod"]]
+    end
+
+    dev_push --> build
+    bumpdev -. git commit .-> adev
+    build -- "same sha, no rebuild" --> promote
+    p2 -. git commit .-> astg
+    p3 -. git commit .-> aprod
+```
+
+The **same `sha-abc123` image** flows through every stage — only the Kustomize
+overlay (config, replicas, namespace) changes. `dev` and `staging` reconcile
+automatically; `prod` waits for a human to run `argocd app sync demo-prod`.
 
 ## Repository layout
 
