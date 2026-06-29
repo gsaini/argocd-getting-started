@@ -6,5 +6,8 @@ npm-debug.log*
 .env.*
 dist/
 coverage/
+
+# Kargo Git/registry credentials -- only the *.example.yaml template is tracked.
+kargo/credentials.yaml
 .idea/
 .vscode/

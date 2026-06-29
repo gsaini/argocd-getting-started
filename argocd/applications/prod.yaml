@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: demo-prod
   namespace: argocd
+  annotations:
+    # Authorise the Kargo `prod` Stage to sync this Application (manual release).
+    kargo.akuity.io/authorized-stage: argocd-getting-started:prod
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:

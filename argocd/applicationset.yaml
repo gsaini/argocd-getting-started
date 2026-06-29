@@ -21,6 +21,9 @@ spec:
   template:
     metadata:
       name: "demo-{{.env}}"
+      annotations:
+        # Authorise the matching Kargo Stage to sync this Application.
+        kargo.akuity.io/authorized-stage: "argocd-getting-started:{{.env}}"
       finalizers:
         - resources-finalizer.argocd.argoproj.io
     spec:

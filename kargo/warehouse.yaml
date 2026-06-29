@@ -1,0 +1,19 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Warehouse
+metadata:
+  name: web
+  namespace: argocd-getting-started
+spec:
+  # How often Kargo polls the registry for new images.
+  interval: 5m0s
+  # New images automatically become a new piece of Freight (the promotable unit).
+  freightCreationPolicy: Automatic
+  subscriptions:
+    - image:
+        repoURL: ghcr.io/gsaini/argocd-getting-started
+        # CI tags every build `sha-<commit>`, so neither SemVer nor Lexical
+        # ordering applies -- pick the most recently pushed build instead.
+        imageSelectionStrategy: NewestBuild
+        # Only consider the immutable build tags; ignore `latest` and `v1.0.0`.
+        allowTags: ^sha-[0-9a-f]+$
+        discoveryLimit: 20

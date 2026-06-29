@@ -154,6 +154,14 @@ open http://localhost:8080         # try also /api/info and /healthz
 
 No step rebuilds the image — the `sha-…` string is the only thing moving.
 
+### Optional: automate promotion with Kargo
+
+The flow above is driven by GitHub Actions (`promote.yaml`) plus a manual prod
+sync. [Kargo](https://kargo.akuity.io/) can run the same dev → staging → prod
+promotion declaratively: a `Warehouse` watches the image and `Stage`s move each
+build forward, auto-promoting dev/staging and leaving prod as a manual gate. See
+[kargo/README.md](kargo/README.md) for the manifests and how to enable it.
+
 ## Try it locally (no cluster)
 
 ```bash
