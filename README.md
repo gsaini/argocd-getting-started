@@ -96,25 +96,49 @@ argocd/
   build.yaml              # build once -> push -> bump dev overlay
   promote.yaml            # copy the same tag dev -> staging -> prod
   validate.yaml           # kustomize build on every overlay (PR gate)
+kargo/                    # optional: declarative dev -> staging -> prod promotion
 scripts/bootstrap.sh      # apply the AppProject + app-of-apps
 docs/architecture.md
 ```
 
-## Quick start
+## Getting started
 
-### 1. Prerequisites
+From zero to three running environments on a local cluster in five steps. If you
+just want to run the app without Kubernetes, jump to
+[Try it locally](#try-it-locally-no-cluster).
 
-- A Kubernetes cluster — [kind](https://kind.sigs.k8s.io/),
-  [minikube](https://minikube.sigs.k8s.io/), k3d, or a real one
-- `kubectl`, and [Argo CD](https://argo-cd.readthedocs.io/) installed:
+### 1. Install the tools & clone
+
+You'll need [`git`](https://git-scm.com/), [`kubectl`](https://kubernetes.io/docs/tasks/tools/),
+a local cluster tool ([kind](https://kind.sigs.k8s.io/) shown here — minikube or
+k3d work too), and optionally the
+[Argo CD CLI](https://argo-cd.readthedocs.io/en/stable/cli_installation/).
+
+```bash
+git clone https://github.com/gsaini/argocd-getting-started.git
+cd argocd-getting-started
+```
+
+> Forking? Swap `gsaini` for your GitHub user first — see
+> [Using this in your own account](#using-this-in-your-own-account).
+
+### 2. Create a local cluster
+
+```bash
+kind create cluster --name argocd-demo
+kubectl cluster-info --context kind-argocd-demo   # sanity check
+```
+
+### 3. Install Argo CD
 
 ```bash
 kubectl create namespace argocd
 kubectl apply -n argocd -f \
   https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl -n argocd rollout status deploy/argocd-server   # wait until Ready
 ```
 
-### 2. Bootstrap the demo
+### 4. Bootstrap the demo
 
 ```bash
 ./scripts/bootstrap.sh
@@ -123,19 +147,28 @@ kubectl apply -f argocd/project.yaml
 kubectl apply -f argocd/app-of-apps.yaml
 ```
 
-Then watch it reconcile:
+Then watch it reconcile — `demo-dev` and `demo-staging` go `Synced/Healthy` on
+their own; `demo-prod` stays `OutOfSync` until you release it:
 
 ```bash
 kubectl get applications -n argocd
-argocd app list
+argocd app list          # optional, needs the Argo CD CLI logged in
 ```
 
-### 3. See an environment
+### 5. See an environment
 
 ```bash
 kubectl -n argocd-demo-dev port-forward svc/web 8080:80
 open http://localhost:8080         # try also /api/info and /healthz
 ```
+
+Change the namespace to `argocd-demo-staging` or `argocd-demo-prod` to see the
+other environments — same image, different badge.
+
+> **Tear down** when you're done: `kind delete cluster --name argocd-demo`.
+
+Next: promote a change through the environments below, or wire up
+[Kargo](kargo/README.md) to automate it.
 
 ## The promotion flow
 
