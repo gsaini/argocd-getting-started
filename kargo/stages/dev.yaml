@@ -1,0 +1,55 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: dev
+  namespace: argocd-getting-started
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: web
+      sources:
+        # dev pulls brand-new Freight straight from the Warehouse.
+        direct: true
+  promotionTemplate:
+    spec:
+      vars:
+        - name: gitRepo
+          value: https://github.com/gsaini/argocd-getting-started.git
+        - name: imageRepo
+          value: ghcr.io/gsaini/argocd-getting-started
+        - name: overlay
+          value: k8s/overlays/dev
+        - name: argocdApp
+          value: demo-dev
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.gitRepo }}
+            checkout:
+              - branch: main
+                path: ./repo
+        # Rewrite the overlay's image tag to the Freight's tag -- the exact same
+        # `newTag:` bump promote.yaml used to do, now driven by Kargo.
+        - uses: kustomize-set-image
+          as: set-image
+          config:
+            path: ./repo/${{ vars.overlay }}
+            images:
+              - image: ${{ vars.imageRepo }} # tag auto-derived from Freight
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "kargo: promote ${{ imageFrom(vars.imageRepo).Tag }} to dev"
+        - uses: git-push
+          config:
+            path: ./repo
+        # Tell Argo CD to sync to the commit we just pushed and wait for health.
+        - uses: argocd-update
+          config:
+            apps:
+              - name: ${{ vars.argocdApp }}
+                sources:
+                  - repoURL: ${{ vars.gitRepo }}
+                    desiredRevision: ${{ outputs.commit.commit }}

@@ -1,0 +1,53 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Stage
+metadata:
+  name: staging
+  namespace: argocd-getting-started
+spec:
+  requestedFreight:
+    - origin:
+        kind: Warehouse
+        name: web
+      sources:
+        # staging only accepts Freight that has already landed in dev.
+        stages:
+          - dev
+  promotionTemplate:
+    spec:
+      vars:
+        - name: gitRepo
+          value: https://github.com/gsaini/argocd-getting-started.git
+        - name: imageRepo
+          value: ghcr.io/gsaini/argocd-getting-started
+        - name: overlay
+          value: k8s/overlays/staging
+        - name: argocdApp
+          value: demo-staging
+      steps:
+        - uses: git-clone
+          config:
+            repoURL: ${{ vars.gitRepo }}
+            checkout:
+              - branch: main
+                path: ./repo
+        - uses: kustomize-set-image
+          as: set-image
+          config:
+            path: ./repo/${{ vars.overlay }}
+            images:
+              - image: ${{ vars.imageRepo }} # tag auto-derived from Freight
+        - uses: git-commit
+          as: commit
+          config:
+            path: ./repo
+            message: "kargo: promote ${{ imageFrom(vars.imageRepo).Tag }} to staging"
+        - uses: git-push
+          config:
+            path: ./repo
+        - uses: argocd-update
+          config:
+            apps:
+              - name: ${{ vars.argocdApp }}
+                sources:
+                  - repoURL: ${{ vars.gitRepo }}
+                    desiredRevision: ${{ outputs.commit.commit }}

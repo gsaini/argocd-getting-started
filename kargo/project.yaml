@@ -1,0 +1,25 @@
+apiVersion: kargo.akuity.io/v1alpha1
+kind: Project
+metadata:
+  name: argocd-getting-started
+# A Kargo Project owns a namespace of the same name. All of this project's
+# Warehouses, Stages, Freight and Promotions live inside it.
+---
+apiVersion: kargo.akuity.io/v1alpha1
+kind: ProjectConfig
+metadata:
+  name: argocd-getting-started
+  namespace: argocd-getting-started
+spec:
+  # Auto-promotion mirrors the Argo CD setup: dev and staging move on their own,
+  # prod waits for a human to create a Promotion (the release gate).
+  #
+  # NOTE: on Kargo < 1.1 these `promotionPolicies` live under `Project.spec`
+  # instead of a separate ProjectConfig resource.
+  promotionPolicies:
+    - stage: dev
+      autoPromotionEnabled: true
+    - stage: staging
+      autoPromotionEnabled: true
+    - stage: prod
+      autoPromotionEnabled: false # manual release gate
